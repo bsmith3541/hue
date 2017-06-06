@@ -38,7 +38,7 @@ def getOrFindUsername():
             print "--We already have a username--"
             return configData["username"]
 
-def calculateTimeInSeconds(currentTimeString):
+def convertTimeStringToSeconds(currentTimeString):
     currentTimeObject = time.strptime(currentTimeString,'%H:%M:%S')
     return timedelta(hours=currentTimeObject.tm_hour,
         minutes=currentTimeObject.tm_min,
@@ -54,21 +54,16 @@ def calculateCurrenTimeOffset(sunrise):
     print "the value of sunrise is"
     print sunrise
     print "--------------------"
-    sunriseInSeconds = calculateTimeInSeconds(sunrise)
-    currentTimeInSeconds = calculateTimeInSeconds(datetime.utcnow().time().strftime('%H:%M:%S'))
+    sunriseInSeconds = convertTimeStringToSeconds(sunrise)
+    currentTimeInSeconds = convertTimeStringToSeconds(datetime.utcnow().time().strftime('%H:%M:%S'))
     print "current time"
     print datetime.utcnow().time()
     print "Time Delta"
     print currentTimeInSeconds - sunriseInSeconds
     return currentTimeInSeconds - sunriseInSeconds
 
-def calculateColorTemperature(sunriseAndSunset, timeSinceSunrise):
-    daylength = sunriseAndSunset["results"]["day_length"]
-    daylengthTime = time.strptime(daylength,'%H:%M:%S')
-    dayLengthInSeconds = timedelta(hours=daylengthTime.tm_hour,
-        minutes=daylengthTime.tm_min,
-        seconds=daylengthTime.tm_sec).total_seconds()
-    print dayLengthInSeconds
+def calculateColorTemperature(daylength, timeSinceSunrise):
+    daylengthInSeconds = convertTimeStringToSeconds(daylength)
 
     print "POLYFIT"
     z = np.polyfit(np.array([0.0, float(dayLengthInSeconds/2.0), dayLengthInSeconds]),
@@ -93,4 +88,4 @@ def getSunriseAndSunset():
 # print getOrFindUsername()
 sunriseAndSunset = getSunriseAndSunset()
 timeSinceSunrise = calculateCurrenTimeOffset(convertFrom12Hourto24HourTime(sunriseAndSunset["results"]["sunrise"]))
-calculateColorTemperature(sunriseAndSunset, timeSinceSunrise)
+calculateColorTemperature(sunriseAndSunset["results"]["day_length"], timeSinceSunrise)
