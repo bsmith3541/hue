@@ -46,30 +46,30 @@ def convertTimeStringToSeconds(currentTimeString):
 
 def convertFrom12Hourto24HourTime(twelveHourTime):
     sunrisein24HourTime = datetime.strptime(twelveHourTime, '%I:%M:%S %p')
-    print "sunrise in 24 hour time"
-    print sunrisein24HourTime
     return sunrisein24HourTime.strftime('%H:%M:%S')
 
 def calculateCurrenTimeOffset(sunrise):
-    print "the value of sunrise is"
-    print sunrise
-    print "--------------------"
     sunriseInSeconds = convertTimeStringToSeconds(sunrise)
     currentTimeInSeconds = convertTimeStringToSeconds(datetime.utcnow().time().strftime('%H:%M:%S'))
-    print "current time"
-    print datetime.utcnow().time()
-    print "Time Delta"
-    print currentTimeInSeconds - sunriseInSeconds
-    return currentTimeInSeconds - sunriseInSeconds
+    timeSinceSunrise = currentTimeInSeconds - sunriseInSeconds
+    print "Time Since Sunrise"
+    print timeSinceSunrise
+    return timeSinceSunrise
+
+
+def calculateHueTemperatureFromKelvin(kelvinTemperature):
+    return (1.0/kelvinTemperature)*1000000.0;
 
 def calculateColorTemperature(daylength, timeSinceSunrise):
-    daylengthInSeconds = convertTimeStringToSeconds(daylength)
+    dayLengthInSeconds = convertTimeStringToSeconds(daylength)
 
     print "POLYFIT"
     z = np.polyfit(np.array([0.0, float(dayLengthInSeconds/2.0), dayLengthInSeconds]),
         np.array([2700.0, 6500.0, 2700.0]), 3)
     p = np.poly1d(z)
-    print p(timeSinceSunrise)
+    calculatedColorTemp = p(timeSinceSunrise)
+    print calculatedColorTemp
+    return calculatedColorTemp
 
 def getSunriseAndSunset():
     sunriseSunsetAPIUrl = "https://api.sunrise-sunset.org/json"
@@ -88,4 +88,5 @@ def getSunriseAndSunset():
 # print getOrFindUsername()
 sunriseAndSunset = getSunriseAndSunset()
 timeSinceSunrise = calculateCurrenTimeOffset(convertFrom12Hourto24HourTime(sunriseAndSunset["results"]["sunrise"]))
-calculateColorTemperature(sunriseAndSunset["results"]["day_length"], timeSinceSunrise)
+kelvinTemp = calculateColorTemperature(sunriseAndSunset["results"]["day_length"], timeSinceSunrise)
+print calculateHueTemperatureFromKelvin(kelvinTemp)
