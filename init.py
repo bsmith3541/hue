@@ -56,6 +56,16 @@ def calculateCurrenTimeOffset(sunrise):
     print timeSinceSunrise
     return timeSinceSunrise
 
+def calculateBrightness(daylength, timeSinceSunrise):
+    dayLengthInSeconds = convertTimeStringToSeconds(daylength)
+
+    z = np.polyfit(np.array([0.0, float(dayLengthInSeconds/2.0), dayLengthInSeconds]),
+        np.array([10.0, 254.0, 10.0]), 2)
+    p = np.poly1d(z)
+    calculatedBrightness = p(timeSinceSunrise)
+    print "Calculated Brightness"
+    print calculatedBrightness
+    return calculatedBrightness
 
 def calculateHueTemperatureFromKelvin(kelvinTemperature):
     return (1.0/kelvinTemperature)*1000000.0;
@@ -63,11 +73,11 @@ def calculateHueTemperatureFromKelvin(kelvinTemperature):
 def calculateColorTemperature(daylength, timeSinceSunrise):
     dayLengthInSeconds = convertTimeStringToSeconds(daylength)
 
-    print "POLYFIT"
     z = np.polyfit(np.array([0.0, float(dayLengthInSeconds/2.0), dayLengthInSeconds]),
-        np.array([2700.0, 6500.0, 2700.0]), 3)
+        np.array([2700.0, 6500.0, 2700.0]), 2)
     p = np.poly1d(z)
     calculatedColorTemp = p(timeSinceSunrise)
+    print "Calculated Temperature"
     print calculatedColorTemp
     return calculatedColorTemp
 
@@ -89,4 +99,6 @@ def getSunriseAndSunset():
 sunriseAndSunset = getSunriseAndSunset()
 timeSinceSunrise = calculateCurrenTimeOffset(convertFrom12Hourto24HourTime(sunriseAndSunset["results"]["sunrise"]))
 kelvinTemp = calculateColorTemperature(sunriseAndSunset["results"]["day_length"], timeSinceSunrise)
+brightness = calculateBrightness(sunriseAndSunset["results"]["day_length"], timeSinceSunrise)
+print "Calculated Hue Temperature"
 print calculateHueTemperatureFromKelvin(kelvinTemp)
