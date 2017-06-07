@@ -120,5 +120,6 @@ def updateHueBulb():
         "bri": brightness
     }
     updateResponse = requests.put('http://10.0.1.2/api/{0}/lights/3/state'.format('w1nlqIyiImsfb0-lMGgm2lZr7k3AWp7MnH1xtRCY'),json=payload)
+    requests.put('http://10.0.1.2/api/{0}/lights/4/state'.format('w1nlqIyiImsfb0-lMGgm2lZr7k3AWp7MnH1xtRCY'),json=payload)
 
 updateHueBulb()
