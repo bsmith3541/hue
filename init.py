@@ -6,7 +6,7 @@ import time
 from urlparse import urlparse
 from pprint import pprint
 import json
-import numpy as np
+import numpy.polynomial.polynomial as poly
 
 def findBridgeIP():
     devicesOnNetwork = ssdp.discover("IpBridge");
@@ -40,44 +40,57 @@ def getOrFindUsername():
 
 def convertTimeStringToSeconds(currentTimeString):
     currentTimeObject = time.strptime(currentTimeString,'%H:%M:%S')
+
     return timedelta(hours=currentTimeObject.tm_hour,
         minutes=currentTimeObject.tm_min,
         seconds=currentTimeObject.tm_sec).total_seconds()
 
-def convertFrom12Hourto24HourTime(twelveHourTime):
-    sunrisein24HourTime = datetime.strptime(twelveHourTime, '%I:%M:%S %p')
-    return sunrisein24HourTime.strftime('%H:%M:%S')
+def calculate24HourTimeFrom12HourTime(currentTime):
+    currentTimeAsTimeObject = time.strptime(currentTime, '%I:%M:%S %p')
+    if currentTime[-2:] == "AM":
+        currentTimeAsString = time.strftime('%H:%M:%S', currentTimeAsTimeObject)
+        return currentTimeAsString
+    else:
+        print "it's PM so I have to work..."
+        convertedTime = timedelta(hours=currentTimeAsTimeObject.tm_hour+12,
+            minutes=currentTimeAsTimeObject.tm_min,
+            seconds=currentTimeAsTimeObject.tm_sec)
+        print convertedTime
+        return convertedTime
 
-def calculateCurrenTimeOffset(sunrise):
+def calculateTimeSinceSunrise(sunrise):
     sunriseInSeconds = convertTimeStringToSeconds(sunrise)
     currentTimeInSeconds = convertTimeStringToSeconds(datetime.utcnow().time().strftime('%H:%M:%S'))
     timeSinceSunrise = currentTimeInSeconds - sunriseInSeconds
-    print "Time Since Sunrise"
-    print timeSinceSunrise
+
     return timeSinceSunrise
 
 def calculateBrightness(daylength, timeSinceSunrise):
     dayLengthInSeconds = convertTimeStringToSeconds(daylength)
 
-    z = np.polyfit(np.array([0.0, float(dayLengthInSeconds/2.0), dayLengthInSeconds]),
-        np.array([10.0, 254.0, 10.0]), 2)
-    p = np.poly1d(z)
-    calculatedBrightness = p(timeSinceSunrise)
-    print "Calculated Brightness"
-    print calculatedBrightness
-    return calculatedBrightness
+    coefs = poly.polyfit([0.0, float(dayLengthInSeconds/2.0), dayLengthInSeconds],
+        [10.0, 254.0, 10.0], 2)
+    ffit = poly.Polynomial(coefs)
+    calculatedBrightness = ffit(timeSinceSunrise)
+    roundedBrightness = int(round(calculatedBrightness))
+
+    return roundedBrightness
 
 def calculateHueTemperatureFromKelvin(kelvinTemperature):
-    return (1.0/kelvinTemperature)*1000000.0;
+    tempInMireks = (1.0/kelvinTemperature)*1000000.0
+    roundedTemp = int(round(tempInMireks))
+
+    return roundedTemp
 
 def calculateColorTemperature(daylength, timeSinceSunrise):
     dayLengthInSeconds = convertTimeStringToSeconds(daylength)
 
-    z = np.polyfit(np.array([0.0, float(dayLengthInSeconds/2.0), dayLengthInSeconds]),
-        np.array([2700.0, 6500.0, 2700.0]), 2)
-    p = np.poly1d(z)
-    calculatedColorTemp = p(timeSinceSunrise)
-    print "Calculated Temperature"
+    coefs = poly.polyfit([0.0, float(dayLengthInSeconds/2.0), dayLengthInSeconds],
+        [2700.0, 6500.0, 2700.0], 2)
+    ffit = poly.Polynomial(coefs)
+
+    calculatedColorTemp = ffit(timeSinceSunrise)
+    print "Calculated Temperature (in Kelvin)"
     print calculatedColorTemp
     return calculatedColorTemp
 
@@ -92,13 +105,20 @@ def getSunriseAndSunset():
         sunriseSunsetRequestUrl = "{0}?lat={1}&lng={2}&date=today".format(sunriseSunsetAPIUrl,
             configData["lat"], configData["long"])
         sunriseAndSunset = requests.get(sunriseSunsetRequestUrl)
-        print sunriseAndSunset.json()
         return json.loads(sunriseAndSunset.text)
 
-# print getOrFindUsername()
-sunriseAndSunset = getSunriseAndSunset()
-timeSinceSunrise = calculateCurrenTimeOffset(convertFrom12Hourto24HourTime(sunriseAndSunset["results"]["sunrise"]))
-kelvinTemp = calculateColorTemperature(sunriseAndSunset["results"]["day_length"], timeSinceSunrise)
-brightness = calculateBrightness(sunriseAndSunset["results"]["day_length"], timeSinceSunrise)
-print "Calculated Hue Temperature"
-print calculateHueTemperatureFromKelvin(kelvinTemp)
+def updateHueBulb():
+    sunriseAndSunset = getSunriseAndSunset()
+    timeSinceSunrise = calculateTimeSinceSunrise(calculate24HourTimeFrom12HourTime(sunriseAndSunset["results"]["sunrise"]))
+    kelvinTemp = calculateColorTemperature(sunriseAndSunset["results"]["day_length"], timeSinceSunrise)
+    brightness = calculateBrightness(sunriseAndSunset["results"]["day_length"], timeSinceSunrise)
+    hueTemp = calculateHueTemperatureFromKelvin(kelvinTemp)
+    print "Rounded Hue Temperature (in Mireks)"
+    print hueTemp
+    payload = {
+        "ct": hueTemp,
+        "bri": brightness
+    }
+    updateResponse = requests.put('http://10.0.1.2/api/{0}/lights/3/state'.format('w1nlqIyiImsfb0-lMGgm2lZr7k3AWp7MnH1xtRCY'),json=payload)
+
+updateHueBulb()
